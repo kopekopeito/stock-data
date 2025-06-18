@@ -1,5 +1,2 @@
 pandas
 yfinance
-requests
-beautifulsoup4
-openpyxl
