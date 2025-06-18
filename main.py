@@ -105,4 +105,13 @@ def get_stock_data(tickers, file_path, index_name):
     else:
         combined_df = new_data_df
     combined_df.drop_duplicates(subset=['Date', 'Ticker'], keep='last', inplace=True)
-    combined_df.sort_values(by
+    combined_df.sort_values(by=['Date', 'Ticker'], inplace=True)
+    combined_df.to_csv(file_path, index=False, encoding='utf-8-sig')
+    print(f"SUCCESS: {file_path} を更新しました。")
+
+
+if __name__ == "__main__":
+    print("======== 株価データ自動更新処理 開始 ========")
+    get_stock_data(NIKKEI_225_TICKERS, NIKKEI_CSV_PATH, "日経225")
+    get_stock_data(GROWTH_250_TICKERS, GROWTH_250_CSV_PATH, "東証グロース250")
+    print("======== 株価データ自動更新処理 正常終了 ========")
