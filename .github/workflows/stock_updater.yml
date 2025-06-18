@@ -1,20 +1,17 @@
-# .github/workflows/stock_updater.yml
-
+# .github/workflows/stock_updater.yml (最終版)
 name: Update Stock Data
 
 on:
   schedule:
+    # 日本時間の平日16:30 (UTC 07:30) に実行
     - cron: '30 7 * * 1-5'
-  workflow_dispatch:
+  workflow_dispatch: # 手動実行ボタンを有効化
 
 jobs:
   update-data:
     runs-on: ubuntu-latest
-
-    # ★★★ ここから2行を追加 ★★★
     permissions:
-      contents: write
-    # ★★★ ここまでを追加 ★★★
+      contents: write # リポジトリへの書き込み権限を付与
 
     steps:
       - name: Checkout repository
@@ -28,14 +25,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run script to update data
+      - name: Run Python script to update data
         run: python main.py
 
-      - name: Commit and push if there are changes
+      - name: Commit and push changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "📈 自動更新: 株価データを更新しました"
           file_pattern: "*.csv"
-          commit_user_name: "GitHub Actions Bot"
-          commit_user_email: "actions@github.com"
-          commit_author: "GitHub Actions Bot <actions@github.com>"
