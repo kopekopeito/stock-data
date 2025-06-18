@@ -1,4 +1,4 @@
-# main.py (最終決定版: グロース250指数対応)
+# main.py (最終決定版: 分割ダウンロード対応)
 import os
 import sys
 import time
@@ -8,11 +8,9 @@ from datetime import date, timedelta
 
 # --- グローバル設定 ---
 NIKKEI_CSV_PATH = 'nikkei_225_data.csv'
-GROWTH_250_CSV_PATH = 'growth_250_data.csv' # 保存ファイル名を変更
+GROWTH_250_CSV_PATH = 'growth_250_data.csv'
 
-# --- 銘柄リスト (この部分を手動で更新します) ---
-
-# 2024年6月時点の日経225全採用銘柄リスト (全225銘柄)
+# --- 銘柄リスト (変更なし) ---
 NIKKEI_225_TICKERS = [
     '1332.T', '1333.T', '1605.T', '1721.T', '1801.T', '1802.T', '1803.T', '1808.T', '1812.T', '1925.T',
     '1928.T', '1963.T', '2002.T', '2269.T', '2282.T', '2432.T', '2501.T', '2502.T', '2503.T', '2801.T',
@@ -35,9 +33,6 @@ NIKKEI_225_TICKERS = [
     '9062.T', '9064.T', '9101.T', '9104.T', '9107.T', '9201.T', '9202.T', '9301.T', '9432.T', '9433.T',
     '9434.T', '9501.T', '9502.T', '9503.T', '9531.T', '9532.T', '9613.T', '9681.T', '9735.T', '9766.T', '9983.T', '9984.T'
 ]
-
-# 2024年6月時点の東証グロース市場250指数 全採用銘柄リスト (全250銘柄)
-# 最新情報は https://www.jpx.co.jp/markets/indices/line-up/index.html 等でご確認ください。
 GROWTH_250_TICKERS = [
     '1431.T', '1447.T', '2158.T', '2160.T', '2375.T', '2468.T', '2489.T', '2934.T', '2978.T', '3031.T',
     '3479.T', '3491.T', '3496.T', '3542.T', '3627.T', '3645.T', '3653.T', '3664.T', '3673.T', '3674.T',
@@ -61,8 +56,9 @@ GROWTH_250_TICKERS = [
 ]
 
 
+# ★★★ この関数の中身を、安定性の高い「分割ダウンロード方式」に変更 ★★★
 def get_stock_data(tickers, file_path, index_name):
-    """株価データを取得し、既存のCSVに追記・保存する"""
+    """株価データを取得し、既存のCSVに追記・保存する（分割ダウンロード対応）"""
     if not tickers:
         print(f"WARNING: {index_name} は銘柄リストが空のためスキップします。")
         return
@@ -82,10 +78,25 @@ def get_stock_data(tickers, file_path, index_name):
         print(f"INFO: {index_name} のデータは最新です。")
         return
     print(f"INFO: yfinanceで {start_date} から {end_date} のデータをダウンロードします...")
-    df_new = yf.download(tickers, start=start_date, end=end_date, auto_adjust=False, group_by='ticker', progress=False, threads=True)
-    if df_new.empty:
+
+    # --- 分割ダウンロード処理 ---
+    all_new_data = []
+    chunk_size = 50  # 50銘柄ずつに分割
+    for i in range(0, len(tickers), chunk_size):
+        chunk = tickers[i:i + chunk_size]
+        print(f"  -> Downloading chunk {i//chunk_size + 1} ({len(chunk)} tickers)...")
+        df_chunk = yf.download(chunk, start=start_date, end=end_date, auto_adjust=False, group_by='ticker', progress=False, threads=True)
+        if not df_chunk.empty:
+            all_new_data.append(df_chunk)
+        time.sleep(1) # サーバー負荷軽減のため1秒待機
+    
+    if not all_new_data:
         print("INFO: 新規の取引データはありませんでした。")
         return
+        
+    df_new = pd.concat(all_new_data, axis=1)
+    # --- 分割ダウンロード処理 ここまで ---
+
     all_data_list = []
     for ticker in tickers:
         try:
