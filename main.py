@@ -1,4 +1,4 @@
-# main.py (最終決定版: エラー耐性強化・デバッグ版)
+# main.py (動作確認テスト用コード)
 import os
 import sys
 import time
@@ -19,28 +19,21 @@ GROWTH_250_TICKERS = [
 ]
 
 def get_stock_data(tickers, file_path, index_name):
-    """株価データを取得し、既存のCSVに追記・保存する（エラー耐性強化版）"""
+    """株価データを取得し、既存のCSVに追記・保存する"""
     if not tickers:
         print(f"WARNING: {index_name} は銘柄リストが空のためスキップします。")
         return
     print(f"INFO: {index_name} の処理を開始。対象は {len(tickers)} 銘柄。")
-    start_date = "2025-01-01"
-    existing_df = None
-    if os.path.exists(file_path):
-        try:
-            existing_df = pd.read_csv(file_path)
-            if not existing_df.empty:
-                last_date_str = existing_df['Date'].dropna().max()
-                last_date = pd.to_datetime(last_date_str)
-                start_date = (last_date + timedelta(days=1)).strftime('%Y-%m-%d')
-        except Exception: pass
-    end_date = date.today().strftime('%Y-%m-%d')
-    if start_date > end_date:
-        print(f"INFO: {index_name} のデータは最新です。")
-        return
-    print(f"INFO: yfinanceで {start_date} から {end_date} のデータをダウンロードします...")
 
-    # --- 分割ダウンロード処理（エラーハンドリング強化）---
+    # ★★★★★ テストのため、取得期間を「過去30日間」に変更 ★★★★★
+    end_date = date.today()
+    start_date = end_date - timedelta(days=30)
+    start_date_str = start_date.strftime('%Y-%m-%d')
+    end_date_str = end_date.strftime('%Y-%m-%d')
+    # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+    print(f"INFO: yfinanceで {start_date_str} から {end_date_str} のデータをダウンロードします...")
+    # (以下のロジックは変更なし)
     all_new_data = []
     chunk_size = 50
     for i in range(0, len(tickers), chunk_size):
@@ -48,22 +41,17 @@ def get_stock_data(tickers, file_path, index_name):
         chunk_num = i // chunk_size + 1
         print(f"  -> Downloading chunk {chunk_num} ({len(chunk)} tickers)...")
         try:
-            df_chunk = yf.download(chunk, start=start_date, end=end_date, auto_adjust=False, group_by='ticker', progress=False, threads=True)
+            df_chunk = yf.download(chunk, start=start_date_str, end=end_date_str, auto_adjust=False, group_by='ticker', progress=False, threads=True)
             if not df_chunk.empty:
                 all_new_data.append(df_chunk)
         except Exception as e:
-            # ★★★ エラーが発生しても処理を止めず、ログに記録して次に進む ★★★
             print(f"  -> ERROR: Chunk {chunk_num} のダウンロードに失敗しました: {e}")
             print(f"  -> Failed Tickers in this chunk: {chunk}")
         time.sleep(1)
-    
     if not all_new_data:
         print("INFO: 新規の取引データは1件もダウンロードできませんでした。")
         return
-        
     df_new = pd.concat(all_new_data, axis=1)
-    # --- 分割ダウンロード処理 ここまで ---
-
     all_data_list = []
     for ticker in tickers:
         try:
@@ -78,15 +66,18 @@ def get_stock_data(tickers, file_path, index_name):
         return
     new_data_df = pd.concat(all_data_list).reset_index()
     new_data_df['Date'] = pd.to_datetime(new_data_df['Date']).dt.strftime('%Y-%m-%d')
-    if existing_df is not None and not existing_df.empty:
+    
+    # 既存ファイルがあれば結合、なければ新規作成
+    if os.path.exists(file_path):
+        existing_df = pd.read_csv(file_path)
         combined_df = pd.concat([existing_df, new_data_df])
     else:
         combined_df = new_data_df
+        
     combined_df.drop_duplicates(subset=['Date', 'Ticker'], keep='last', inplace=True)
     combined_df.sort_values(by=['Date', 'Ticker'], inplace=True)
     combined_df.to_csv(file_path, index=False, encoding='utf-8-sig')
     print(f"SUCCESS: {file_path} を更新しました。")
-
 
 if __name__ == "__main__":
     print("======== 株価データ自動更新処理 開始 ========")
