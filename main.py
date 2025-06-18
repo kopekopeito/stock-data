@@ -57,7 +57,8 @@ def get_stock_data(tickers, file_path, index_name):
                 last_date = pd.to_datetime(last_date_str)
                 start_date = (last_date + timedelta(days=1)).strftime('%Y-%m-%d')
         except Exception: pass
-    
+
+     end_date_obj = date.today() - timedelta(days=1)
     end_date = date.today().strftime('%Y-%m-%d')
     # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
     
